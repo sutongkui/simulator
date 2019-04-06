@@ -1,11 +1,11 @@
-# VISGSim
+# Simulator
 
 
-VISGSim is a GPU-based cloth simulator.
+Simulator is a GPU-based cloth simulator.
 
 ![Results](https://github.com/sutongkui/simulator/raw/master/Pic/Fig_1.jpg)
 
-# CONTRIBUTIONS
+# Contributions
 
   - A unified streaming pipeline for time integration and collision handling
   - Unified collision handling: we present a parallel, integrated collision detection and response algorithm - Position projection and inelastic collision response force
@@ -26,10 +26,12 @@ VISGSim is a GPU-based cloth simulator.
 * mouse - press *middle* and drag to scale, press *left* and drag to rotate
 
 # Realated papers
-* [parallel bvh construction and implementation](https://devblogs.nvidia.com/parallelforall/thinking-parallel-part-ii-tree-traversal-gpu/)
-*  Contact-Aware Matrix Assembly with Uniﬁed Collision Handling for GPU-based Cloth Simulation
-# contact
-If you need the corresponding testing model, such as body model, garments model, just e-mail - tongkuisu@smail.nju.edu.cn
+
+* [GPU-based Real-time Cloth Simulation for Virtual Try-on](https://diglib.eg.org/handle/10.2312/pg20181288)
+* [Maximizing Parallelism in the Construction of BVHs, Octrees, and k-d Trees](https://research.nvidia.com/publication/maximizing-parallelism-construction-bvhs-octrees-and-k-d-trees)
+*  [Contact-Aware Matrix Assembly with Uniﬁed Collision Handling for GPU-based Cloth Simulation](http://gamma.cs.unc.edu/CAMA/)
+# Compile
+Use cmake to compile it and check **CUDA_SEPARATE_COMPILATION**.
 
 
 
