@@ -400,7 +400,7 @@ bool Springs::exist(const vector<unsigned int>& array, const unsigned int val)
 		return true;
 }
 
-void Springs::serialize_structure_spring(vector<s_spring>& cpu_neigh1)
+void Springs::serialize_structure_spring(vector<s_spring>& cpu_neigh1)  
 {
 	cpu_neigh1.resize(neigh1_spring.size()*NUM_PER_VERTEX_SPRING_STRUCT);
 	
@@ -431,4 +431,9 @@ void Springs::serialize_bend_spring(vector<s_spring>& cpu_neigh2)
 		if (NUM_PER_VERTEX_SPRING_BEND > neigh2_spring[i].size())
 			cpu_neigh2[i*NUM_PER_VERTEX_SPRING_BEND + j].end = SENTINEL;     //sentinel
 	}
+}
+
+void CSR_spring(vector<s_spring>& cpu_neigh1, vector<unsigned int>& CSR_R, vector<unsigned int>& CSR_C)
+{
+
 }

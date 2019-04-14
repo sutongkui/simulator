@@ -39,7 +39,6 @@ private:
 
 	// pre-malloc for vertices computation
 	int readID, writeID;
-	glm::vec3* x_original;      // keep it to compute spring original length
 	glm::vec3* x_cur[2];
 	glm::vec3* x_last[2];
 

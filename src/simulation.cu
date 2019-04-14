@@ -14,7 +14,7 @@
 using namespace std;
 
 __global__ void compute_face_normal(glm::vec3* g_pos_in, unsigned int* cloth_index, const unsigned int cloth_index_size, glm::vec3* cloth_face);   //update cloth face normal
-__global__ void verlet(glm::vec3 * g_pos_in, glm::vec3 * g_pos_old_in, glm::vec3 * g_pos_out, glm::vec3 * g_pos_old_out,glm::vec3* const_pos,
+__global__ void verlet(glm::vec3 * g_pos_in, glm::vec3 * g_pos_old_in, glm::vec3 * g_pos_out, glm::vec3 * g_pos_old_out,
 						s_spring* neigh1, s_spring* neigh2,
 					  const unsigned int NUM_VERTICES,
 					  D_BVH bvh, glm::vec3* d_collision_force);  //verlet intergration
@@ -28,7 +28,6 @@ Simulator::Simulator()
 
 Simulator::~Simulator()
 {
-	cudaFree(x_original);
 	cudaFree(x_cur[0]);
 	cudaFree(x_cur[1]);
 	cudaFree(x_last[0]);
@@ -62,7 +61,6 @@ void Simulator::init_cloth(Mesh& sim_cloth)
 
 	// Send the cloth's vertices to GPU
 	const unsigned int vertices_bytes = sizeof(glm::vec3) * sim_cloth.vertices.size();
-	safe_cuda(cudaMalloc((void**)&x_original, vertices_bytes)); // cloth vertices (const)
 	safe_cuda(cudaMalloc((void**)&x_cur[0], vertices_bytes));			 // cloth vertices
 	safe_cuda(cudaMalloc((void**)&x_cur[1], vertices_bytes));			 // cloth vertices
 	safe_cuda(cudaMalloc((void**)&x_last[0], vertices_bytes));	 // cloth old vertices
@@ -81,7 +79,6 @@ void Simulator::init_cloth(Mesh& sim_cloth)
 		tem_vertices[i] = glm::vec3(sim_cloth.vertices[i]);   // glm::vec4 -> glm::vec3
 	}
 
-	safe_cuda(cudaMemcpy(x_original, &tem_vertices[0], vertices_bytes, cudaMemcpyHostToDevice));
 	safe_cuda(cudaMemcpy(x_cur[0], &tem_vertices[0], vertices_bytes, cudaMemcpyHostToDevice));
 	safe_cuda(cudaMemcpy(x_last[0], &tem_vertices[0], vertices_bytes, cudaMemcpyHostToDevice));
 
@@ -172,7 +169,7 @@ void Simulator::cuda_verlet(const unsigned int numParticles)
 	unsigned int numThreads, numBlocks;
 	
 	computeGridSize(numParticles, 512, numBlocks, numThreads);
-	verlet <<< numBlocks, numThreads >>>(x_cur_in,x_last_in, x_cur_out, x_last_out,x_original,
+	verlet <<< numBlocks, numThreads >>>(x_cur_in,x_last_in, x_cur_out, x_last_out,
 										d_adj_structure_spring,d_adj_bend_spring,							
 										numParticles,
 										*cuda_bvh->d_bvh, d_collision_force);
