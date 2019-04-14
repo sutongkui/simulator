@@ -20,8 +20,6 @@ private:
 	void init_cloth(Mesh& cloth);
 	void init_spring(Mesh& cloth);
 	void build_bvh(Mesh& body);
-	
-	//void cuda_compute_face_normal(Mesh* sim_cloth, unsigned int* d_adjvertex_to_face);
 	void cuda_verlet(const unsigned int numParticles);
 
 	void get_vertex_adjface(Mesh& sim_cloth,vector<unsigned int>& vertex_adjface);
@@ -34,8 +32,9 @@ private:
 	cudaGraphicsResource* d_vbo_index_resource;  //map OPENGL index buffer to cuda
 
 	// springs
-	s_spring* d_adj_structure_spring;  // adjacent structure springs for each vertex 
-	s_spring* d_adj_bend_spring;       // adjacent bend springs for each vertex 
+	// i-th start index = CSR_R[i], i-th end index = CSR_R[i+1] 
+	unsigned int* CSR_R_structure, *CSR_R_bend;   // adjacent structure springs for each vertex 
+	s_spring* CSR_C_structure, *CSR_C_bend;        // adjacent bend springs for each vertex 
 
 	// pre-malloc for vertices computation
 	int readID, writeID;

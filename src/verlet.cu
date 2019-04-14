@@ -50,19 +50,19 @@ __device__ void collision_response_projection(D_BVH bvh,
 
 }
 
-__device__ glm::vec3 get_spring_force(int index, glm::vec3* g_pos_in, glm::vec3* g_pos_old_in,
-										s_spring* neigh,unsigned int NUM_NEIGH,
+__device__ glm::vec3 compute_spring_force(int index, glm::vec3* g_pos_in, glm::vec3* g_pos_old_in,
+										unsigned int* CSR_R, s_spring* CSR_C_SPRING,
 									  glm::vec3 pos,glm::vec3 vel,float k_spring)
 {
 	glm::vec3 force(0.0);
-	int first_neigh = index*NUM_NEIGH;   //访问一级邻域，SENTINEL为截至标志
+	int first_neigh = CSR_R[index];   
 	int time = 0;
-	for (int k = first_neigh; neigh[k].end != SENTINEL && time<NUM_NEIGH; k++, time++) //部分点邻域大于MAX_NEIGH(20)
+	for (int k = first_neigh; k< CSR_R[index+1]; k++) 
 	{
 		float ks = k_spring;
 		float kd = -0.5;
 
-		int index_neigh = neigh[k].end;
+		int index_neigh = CSR_C_SPRING[k].end;
 		volatile auto pos_neighData = g_pos_in[index_neigh];
 		volatile auto pos_lastData = g_pos_old_in[index_neigh];
 		glm::vec3 p2 = glm::vec3(pos_neighData.x, pos_neighData.y, pos_neighData.z);
@@ -70,17 +70,14 @@ __device__ glm::vec3 get_spring_force(int index, glm::vec3* g_pos_in, glm::vec3*
 
 		glm::vec3 v2 = (p2 - p2_last) / dt;
 		glm::vec3 deltaP = pos - p2;
-		if (glm::length(deltaP) == 0)
-		{
-			//force += glm::vec3(0.0f); continue; 
-			deltaP += glm::vec3(1.0e-6);	//avoid '0'
-		}  
+
+		deltaP += glm::vec3(FLT_EPSILON);    //avoid 0
 
 		glm::vec3 deltaV = vel - v2;
-		float dist = glm::length(deltaP); //avoid '0'
+		float dist = glm::length(deltaP); 
 
 
-		float original_length = neigh[k].original;
+		float original_length = CSR_C_SPRING[k].original;
 		float leftTerm = -ks * (dist - original_length);
 		float  rightTerm =  kd * (glm::dot(deltaV, deltaP) / dist);
 		glm::vec3 springForce = (leftTerm + rightTerm)*glm::normalize(deltaP);
@@ -131,9 +128,9 @@ __global__ void update_vbo_pos(glm::vec4* pos_vbo, glm::vec3* pos_cur, const uns
 }
 
 __global__ void verlet(glm::vec3 * g_pos_in, glm::vec3 * g_pos_old_in, glm::vec3 * g_pos_out, glm::vec3 * g_pos_old_out,
-						s_spring* neigh1, s_spring* neigh2,
-					    const unsigned int NUM_VERTICES,
-						D_BVH bvh, glm::vec3* collision_force)
+						unsigned int* CSR_R_STR, s_spring* CSR_C_STR, unsigned int* CSR_R_BD, s_spring* CSR_C_BD,
+					    D_BVH bvh, glm::vec3* collision_force,
+						const unsigned int NUM_VERTICES)
 {
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
 	if (index >= NUM_VERTICES)
@@ -149,8 +146,8 @@ __global__ void verlet(glm::vec3 * g_pos_in, glm::vec3 * g_pos_old_in, glm::vec3
 	
 	glm::vec3 gravity(gravit_x, gravit_y, gravit_z);
 	glm::vec3 force = gravity*mass + vel*damp;
-	force += get_spring_force(index, g_pos_in, g_pos_old_in, neigh1, NUM_PER_VERTEX_SPRING_STRUCT, pos, vel,spring_structure); //计算一级邻域弹簧力
-	force += get_spring_force(index, g_pos_in, g_pos_old_in, neigh2, NUM_PER_VERTEX_SPRING_BEND, pos, vel,spring_bend); //计算二级邻域弹簧力
+	force += compute_spring_force(index, g_pos_in, g_pos_old_in, CSR_R_STR, CSR_C_STR, pos, vel,spring_structure); // Compute structure spring force
+	force += compute_spring_force(index, g_pos_in, g_pos_old_in, CSR_R_BD, CSR_C_BD, pos, vel,spring_bend); // Compute bend spring force
 
 	glm::vec3 inelastic_force = glm::dot(collision_force[index], force) * collision_force[index];       //collision response force, if intersected, keep tangential
 	force -= inelastic_force;

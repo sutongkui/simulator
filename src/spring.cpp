@@ -84,7 +84,6 @@ void Matrix::Insert_Matrix(
 
 Springs::Springs(Mesh* spring_obj)
 {
-	cout << "build springs" << endl;
 	if (spring_obj->get_obj_type() == SINGLE_LAYER_BOUNDARY)
 	{
 		get_cloth_boundary_spring(spring_obj); //后面需要依赖
@@ -92,10 +91,6 @@ Springs::Springs(Mesh* spring_obj)
 	}
 
 	create_neigh(spring_obj);
-	create_neigh_spring(spring_obj);
-
-	cout << "springs build successfully!" << endl;
-
 }
 
 Springs::~Springs()
@@ -360,38 +355,6 @@ void Springs::create_neigh(Mesh* spring_obj)
 
 }
 
-void Springs::create_neigh_spring(Mesh* spring_obj)
-{
-	neigh1_spring.resize(neigh1.size());
-	for(int i=0;i<neigh1.size();i++)
-	{
-		for (int j = 0; j < neigh1[i].size(); j++)
-		{
-			s_spring tem_spring;
-			tem_spring.end = neigh1[i][j];
-			tem_spring.original = glm::distance(spring_obj->vertices[i],spring_obj->vertices[tem_spring.end]);
-			neigh1_spring[i].push_back(tem_spring);
-		}
-	}
-	
-
-	neigh2_spring.resize(neigh2.size());
-	for (int i = 0; i<neigh2.size(); i++)
-	{
-		for (int j = 0; j < neigh2[i].size(); j++)
-		{
-			s_spring tem_spring;
-			tem_spring.end = neigh2[i][j];
-			if (bend_spring_length.find(make_pair(i, neigh2[i][j])) != bend_spring_length.end())
-				tem_spring.original = bend_spring_length[make_pair(i, neigh2[i][j])];
-			else
-				tem_spring.original = bend_spring_length[make_pair(neigh2[i][j],i)];
-
-			neigh2_spring[i].push_back(tem_spring);
-		}
-	}
-}
-
 bool Springs::exist(const vector<unsigned int>& array, const unsigned int val)
 {
 	if (array.end() == find(array.begin(), array.end(), val))
@@ -400,40 +363,33 @@ bool Springs::exist(const vector<unsigned int>& array, const unsigned int val)
 		return true;
 }
 
-void Springs::serialize_structure_spring(vector<s_spring>& cpu_neigh1)  
+void Springs::CSR_structure_spring(Mesh* spring_obj, vector<unsigned int>& CSR_R, vector<s_spring>& CSR_C)
 {
-	cpu_neigh1.resize(neigh1_spring.size()*NUM_PER_VERTEX_SPRING_STRUCT);
-	
-	for (int i = 0; i < neigh1_spring.size(); i++)
-	{
-		int j;
-		for (j = 0; j < neigh1_spring[i].size() && j < NUM_PER_VERTEX_SPRING_STRUCT; j++)
-		{
-			cpu_neigh1[i*NUM_PER_VERTEX_SPRING_STRUCT + j] = neigh1_spring[i][j];
-		}
-		if (NUM_PER_VERTEX_SPRING_STRUCT > neigh1_spring[i].size())
-			cpu_neigh1[i*NUM_PER_VERTEX_SPRING_STRUCT + j].end = SENTINEL;     //sentinel
-
-	}
+	CSR_spring(spring_obj, neigh1, CSR_R, CSR_C);
 }
 
-void Springs::serialize_bend_spring(vector<s_spring>& cpu_neigh2)
+void Springs::CSR_bend_spring(Mesh* spring_obj, vector<unsigned int>& CSR_R, vector<s_spring>& CSR_C)
 {
-	cpu_neigh2.resize(neigh2_spring.size()*NUM_PER_VERTEX_SPRING_BEND);
-
-	for (int i = 0; i < neigh2_spring.size(); i++)
-	{
-		int j;
-		for (j = 0; j < neigh2_spring[i].size() && j < NUM_PER_VERTEX_SPRING_BEND; j++)
-		{
-			cpu_neigh2[i*NUM_PER_VERTEX_SPRING_BEND + j] = neigh2_spring[i][j];
-		}
-		if (NUM_PER_VERTEX_SPRING_BEND > neigh2_spring[i].size())
-			cpu_neigh2[i*NUM_PER_VERTEX_SPRING_BEND + j].end = SENTINEL;     //sentinel
-	}
+	CSR_spring(spring_obj, neigh2, CSR_R, CSR_C);
 }
 
-void CSR_spring(vector<s_spring>& cpu_neigh1, vector<unsigned int>& CSR_R, vector<unsigned int>& CSR_C)
-{
 
+void Springs::CSR_spring(const Mesh* spring_obj, const vector<vector<unsigned int>>& neigh, vector<unsigned int>& CSR_R, vector<s_spring>& CSR_C)
+{
+	int start_idx = 0;
+	for (int i = 0; i < neigh.size(); i++)
+	{
+		CSR_R.push_back(start_idx);
+		start_idx += neigh[i].size();
+
+		for (int j = 0; j < neigh[i].size(); j++)
+		{
+			s_spring tem_spring;
+			tem_spring.end = neigh[i][j];
+			tem_spring.original = glm::distance(spring_obj->vertices[i], spring_obj->vertices[tem_spring.end]);
+			CSR_C.push_back(tem_spring);
+		}
+	}
+
+	CSR_R.push_back(start_idx);   // 便于后面计算的统一处理
 }

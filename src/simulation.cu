@@ -15,9 +15,9 @@ using namespace std;
 
 __global__ void compute_face_normal(glm::vec3* g_pos_in, unsigned int* cloth_index, const unsigned int cloth_index_size, glm::vec3* cloth_face);   //update cloth face normal
 __global__ void verlet(glm::vec3 * g_pos_in, glm::vec3 * g_pos_old_in, glm::vec3 * g_pos_out, glm::vec3 * g_pos_old_out,
-						s_spring* neigh1, s_spring* neigh2,
-					  const unsigned int NUM_VERTICES,
-					  D_BVH bvh, glm::vec3* d_collision_force);  //verlet intergration
+						unsigned int* CSR_R_STR, s_spring* CSR_C_STR, unsigned int* CSR_R_BD, s_spring* CSR_C_BD,
+						D_BVH bvh, glm::vec3* d_collision_force,
+						const unsigned int NUM_VERTICES);  //verlet intergration
 __global__ void update_vbo_pos(glm::vec4* pos_vbo, glm::vec3* pos_cur, const unsigned int NUM_VERTICES);
 __global__ void compute_vbo_normal(glm::vec3* normals, unsigned int* vertex_adjface, glm::vec3* face_normal, const unsigned int NUM_VERTICES);
 
@@ -36,8 +36,10 @@ Simulator::~Simulator()
 	cudaFree(d_adjface_to_vertex);
 	cudaFree(d_face_normals);
 
-	cudaFree(d_adj_structure_spring);
-	cudaFree(d_adj_bend_spring);
+	cudaFree(CSR_R_structure);
+	cudaFree(CSR_R_bend);
+	cudaFree(CSR_C_structure);
+	cudaFree(CSR_C_bend);
 
 	delete cuda_bvh;
 }
@@ -96,20 +98,27 @@ void Simulator::init_cloth(Mesh& sim_cloth)
 
 void Simulator::init_spring(Mesh& sim_cloth)
 {
+	cout << "build springs" << endl;
 	// Construct structure and bend springs in GPU
 	Springs springs(&sim_cloth);
-	vector<s_spring> cpu_str_spring;
-	vector<s_spring> cpu_bend_spring;
+	
+	vector<unsigned int> TEM_CSR_R_structure, TEM_CSR_R_bend;
+	vector<s_spring> TEM_CSR_C_structure, TEM_CSR_C_bend;
 
+	springs.CSR_structure_spring(&sim_cloth, TEM_CSR_R_structure, TEM_CSR_C_structure);
+	springs.CSR_bend_spring(&sim_cloth, TEM_CSR_R_bend, TEM_CSR_C_bend);
 
-	springs.serialize_structure_spring(cpu_str_spring);
-	springs.serialize_bend_spring(cpu_bend_spring);
+	safe_cuda(cudaMalloc((void**)&CSR_R_structure, TEM_CSR_R_structure.size() * sizeof(unsigned int)));
+	safe_cuda(cudaMalloc((void**)&CSR_R_bend, TEM_CSR_R_bend.size() * sizeof(unsigned int)));
+	safe_cuda(cudaMalloc((void**)&CSR_C_structure, TEM_CSR_C_structure.size() * sizeof(s_spring)));
+	safe_cuda(cudaMalloc((void**)&CSR_C_bend, TEM_CSR_C_bend.size() * sizeof(s_spring)));
 
-	safe_cuda(cudaMalloc((void**)&d_adj_structure_spring, cpu_str_spring.size() * sizeof(s_spring)));
-	safe_cuda(cudaMalloc((void**)&d_adj_bend_spring, cpu_bend_spring.size() * sizeof(s_spring)));
-	safe_cuda(cudaMemcpy(d_adj_structure_spring, &cpu_str_spring[0], cpu_str_spring.size() * sizeof(s_spring), cudaMemcpyHostToDevice));
-	safe_cuda(cudaMemcpy(d_adj_bend_spring, &cpu_bend_spring[0], cpu_bend_spring.size() * sizeof(s_spring), cudaMemcpyHostToDevice));
-
+	safe_cuda(cudaMemcpy(CSR_R_structure, &TEM_CSR_R_structure[0], TEM_CSR_R_structure.size() * sizeof(unsigned int), cudaMemcpyHostToDevice));
+	safe_cuda(cudaMemcpy(CSR_R_bend, &TEM_CSR_R_bend[0], TEM_CSR_R_bend.size() * sizeof(unsigned int), cudaMemcpyHostToDevice));
+	safe_cuda(cudaMemcpy(CSR_C_structure, &TEM_CSR_C_structure[0], TEM_CSR_C_structure.size() * sizeof(s_spring), cudaMemcpyHostToDevice));
+	safe_cuda(cudaMemcpy(CSR_C_bend, &TEM_CSR_C_bend[0], TEM_CSR_C_bend.size() * sizeof(s_spring), cudaMemcpyHostToDevice));
+	
+	cout << "springs build successfully!" << endl;
 }
 
 void Simulator::build_bvh(Mesh& body)
@@ -170,9 +179,9 @@ void Simulator::cuda_verlet(const unsigned int numParticles)
 	
 	computeGridSize(numParticles, 512, numBlocks, numThreads);
 	verlet <<< numBlocks, numThreads >>>(x_cur_in,x_last_in, x_cur_out, x_last_out,
-										d_adj_structure_spring,d_adj_bend_spring,							
-										numParticles,
-										*cuda_bvh->d_bvh, d_collision_force);
+										CSR_R_structure, CSR_C_structure, CSR_R_bend, CSR_C_bend,
+										*cuda_bvh->d_bvh, d_collision_force,
+										numParticles);
 
 	// stop the CPU until the kernel has been executed
 	safe_cuda(cudaDeviceSynchronize());
