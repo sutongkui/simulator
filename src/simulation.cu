@@ -7,7 +7,6 @@
 #include <iostream>
 #include <fstream>
 
-#include "sim_parameter.h"
 #include "watch.h"
 #include "common.h"
 
@@ -19,7 +18,7 @@ __global__ void verlet(glm::vec3 * g_pos_in, glm::vec3 * g_pos_old_in, glm::vec3
 						D_BVH bvh, glm::vec3* d_collision_force,
 						const unsigned int NUM_VERTICES);  //verlet intergration
 __global__ void update_vbo_pos(glm::vec4* pos_vbo, glm::vec3* pos_cur, const unsigned int NUM_VERTICES);
-__global__ void compute_vbo_normal(glm::vec3* normals, unsigned int* vertex_adjface, glm::vec3* face_normal, const unsigned int NUM_VERTICES);
+__global__ void compute_vbo_normal(glm::vec3* normals, unsigned int* CSR_R, unsigned int* CSR_C_adjface_to_vertex, glm::vec3* face_normal, const unsigned int NUM_VERTICES);
 
 Simulator::Simulator()
 {
@@ -33,7 +32,8 @@ Simulator::~Simulator()
 	cudaFree(x_last[0]);
 	cudaFree(x_last[1]);
 	cudaFree(d_collision_force);
-	cudaFree(d_adjface_to_vertex);
+	cudaFree(d_CSR_R);
+	cudaFree(d_CSR_C_adjface_to_vertex);
 	cudaFree(d_face_normals);
 
 	cudaFree(CSR_R_structure);
@@ -85,13 +85,16 @@ void Simulator::init_cloth(Mesh& sim_cloth)
 	safe_cuda(cudaMemcpy(x_last[0], &tem_vertices[0], vertices_bytes, cudaMemcpyHostToDevice));
 
 	//计算normal所需的数据：每个点邻接的面的索引 + 每个面的3个点的索引
-	vector<unsigned int> vertex_adjface;
-	get_vertex_adjface(sim_cloth, vertex_adjface);
-	const unsigned int vertex_adjface_bytes = sizeof(unsigned int) * vertex_adjface.size();  //每个点邻接的面的索引
-	safe_cuda(cudaMalloc((void**)&d_adjface_to_vertex, vertex_adjface_bytes));
-	safe_cuda(cudaMemcpy(d_adjface_to_vertex, &vertex_adjface[0], vertex_adjface_bytes, cudaMemcpyHostToDevice));
-	safe_cuda(cudaMalloc((void**)&d_face_normals, sizeof(glm::vec3) * sim_cloth.faces.size()));    //face normal
+	vector<unsigned int> TEM_CSR_R;
+	vector<unsigned int> TEM_CSR_C_adjface;
+	get_vertex_adjface(sim_cloth, TEM_CSR_R, TEM_CSR_C_adjface);
+
+	safe_cuda(cudaMalloc((void**)&d_CSR_R, sizeof(unsigned int) * TEM_CSR_R.size()));
+	safe_cuda(cudaMalloc((void**)&d_CSR_C_adjface_to_vertex, sizeof(unsigned int) * TEM_CSR_C_adjface.size()));
+	safe_cuda(cudaMemcpy(d_CSR_R, &TEM_CSR_R[0], sizeof(unsigned int) * TEM_CSR_R.size(), cudaMemcpyHostToDevice));
+	safe_cuda(cudaMemcpy(d_CSR_C_adjface_to_vertex, &TEM_CSR_C_adjface[0], sizeof(unsigned int) * TEM_CSR_C_adjface.size(), cudaMemcpyHostToDevice));
 	
+	safe_cuda(cudaMalloc((void**)&d_face_normals, sizeof(glm::vec3) * sim_cloth.faces.size()));    //face normal
 
 	safe_cuda(cudaGraphicsGLRegisterBuffer(&d_vbo_index_resource, sim_cloth.vbo.index_buffer, cudaGraphicsMapFlagsWriteDiscard));   	//register vbo
 }
@@ -146,7 +149,7 @@ void Simulator::simulate(Mesh* sim_cloth)
 	swap_buffer();
 }
 
-void Simulator::get_vertex_adjface(Mesh& sim_cloth, vector<unsigned int>& vertex_adjface)
+void Simulator::get_vertex_adjface(Mesh& sim_cloth, vector<unsigned int>& CSR_R, vector<unsigned int>& CSR_C_adjface)
 {
 	vector<vector<unsigned int>> adjaceny(sim_cloth.vertices.size());
 	for(int i=0;i<sim_cloth.faces.size();i++)
@@ -159,18 +162,21 @@ void Simulator::get_vertex_adjface(Mesh& sim_cloth, vector<unsigned int>& vertex
 		}
 	}
 
-	// 每个点最大包含20个邻近面，不足者以SENTINEL作为结束标志
-	vertex_adjface.resize(sim_cloth.vertices.size()*NUM_PER_VERTEX_ADJ_FACES);
+	// i-th vertex adjacent face start_index = CSR_R[i], end_index = CSR_R[i+1]
+	// then you can acess CSR_C_adjface[start_index->end_index]
+	unsigned int start_idx = 0;
 	for(int i=0;i<adjaceny.size();i++)
 	{
-		int j;
-		for(j=0;j<adjaceny[i].size() && j<NUM_PER_VERTEX_ADJ_FACES;j++)
+		CSR_R.push_back(start_idx);
+		start_idx += adjaceny[i].size();
+
+		for(int j=0;j<adjaceny[i].size();j++)
 		{
-			vertex_adjface[i*NUM_PER_VERTEX_ADJ_FACES+j] = adjaceny[i][j];
+			CSR_C_adjface.push_back(adjaceny[i][j]);
 		}
-		if(NUM_PER_VERTEX_ADJ_FACES>adjaceny[i].size())
-			vertex_adjface[i*NUM_PER_VERTEX_ADJ_FACES+j] = SENTINEL;                  //Sentinel
 	}
+
+	CSR_R.push_back(start_idx);
 }
 
 void Simulator::cuda_verlet(const unsigned int numParticles)
@@ -217,7 +223,7 @@ void Simulator::cuda_update_vbo(Mesh* sim_cloth)
 
 	// update vertex normal
 	computeGridSize(numParticles, 1024, numBlocks, numThreads);
-	compute_vbo_normal << < numBlocks, numThreads >> > (d_vbo_normal, d_adjface_to_vertex, d_face_normals ,numParticles);
+	compute_vbo_normal << < numBlocks, numThreads >> > (d_vbo_normal, d_CSR_R, d_CSR_C_adjface_to_vertex, d_face_normals ,numParticles);
 	safe_cuda(cudaDeviceSynchronize());
 
 	safe_cuda(cudaGraphicsUnmapResources(1, &d_vbo_index_resource));

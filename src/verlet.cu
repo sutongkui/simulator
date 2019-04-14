@@ -7,7 +7,6 @@
 #include <device_launch_parameters.h>
 #include <glm/glm.hpp>
 
-#include "sim_parameter.h"
 
 
 //physics parameter
@@ -161,7 +160,7 @@ __global__ void verlet(glm::vec3 * g_pos_in, glm::vec3 * g_pos_old_in, glm::vec3
 	g_pos_old_out[index] = pos_old;
 }
 
-__global__ void compute_vbo_normal(glm::vec3* normals, unsigned int* vertex_adjface, glm::vec3* face_normal, const unsigned int NUM_VERTICES)
+__global__ void compute_vbo_normal(glm::vec3* normals, unsigned int* CSR_R, unsigned int* CSR_C_adjface_to_vertex, glm::vec3* face_normal, const unsigned int NUM_VERTICES)
 {
 
 	unsigned int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -170,10 +169,10 @@ __global__ void compute_vbo_normal(glm::vec3* normals, unsigned int* vertex_adjf
 
 	//compute point normal
 	glm::vec3 normal(0.0);
-	int first_face_index = index * NUM_PER_VERTEX_ADJ_FACES;
-	for (int i = first_face_index, time = 0; vertex_adjface[i] != SENTINEL && time < NUM_PER_VERTEX_ADJ_FACES; i++, time++)
+	int first_face_index = CSR_R[index];
+	for (int i = first_face_index; i< CSR_R[index+1]; i++)
 	{
-		int findex = vertex_adjface[i];
+		int findex = CSR_C_adjface_to_vertex[i];
 		glm::vec3 fnormal = face_normal[findex];
 		normal += fnormal;
 	}

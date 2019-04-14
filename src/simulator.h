@@ -22,7 +22,7 @@ private:
 	void build_bvh(Mesh& body);
 	void cuda_verlet(const unsigned int numParticles);
 
-	void get_vertex_adjface(Mesh& sim_cloth,vector<unsigned int>& vertex_adjface);
+	void get_vertex_adjface(Mesh& sim_cloth, vector<unsigned int>& CSR_R, vector<unsigned int>& CSR_C_adjface);
 	void computeGridSize(unsigned int n, unsigned int blockSize, unsigned int &numBlocks, unsigned int &numThreads);
 	void swap_buffer();
 	void save(string file_name);
@@ -47,7 +47,7 @@ private:
 
 	// pre-malloc for nomal computation
 	glm::vec3* d_collision_force;           // store the normal of the face if collided, or set 0.0 if no collision
-	unsigned int* d_adjface_to_vertex;       //To compute each point's normal, we need the adjacent face indices of each point  
+	unsigned int* d_CSR_R, *d_CSR_C_adjface_to_vertex;    //To compute each point's normal, we need the adjacent face indices of each point
 
 	// used in update_vbo, just to avoid calling malloc once cuda_update_vbo called
 	glm::vec3* d_face_normals;        // face(triangle) normal	

@@ -6,9 +6,6 @@
 #include <iostream>
 #include <cuda_runtime.h>
 
-
-#include "sim_parameter.h"
-
 using namespace std;
 
 class Matrix
