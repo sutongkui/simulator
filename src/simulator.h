@@ -14,6 +14,7 @@ public:
 	Simulator(Mesh& cloth,Mesh& body);
 	void simulate(Mesh* cloth);
 	void cuda_update_vbo(Mesh* sim_cloth);
+	void update_vertex(glm::vec3 new_value, const unsigned int idx);
 
 
 private:

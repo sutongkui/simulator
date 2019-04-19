@@ -25,7 +25,7 @@ int main(int argc, char** argv)
 	cloth.rotation(90, X);   
 	cloth.rotation(-4, Z);
 	cloth.scale(3.33);
-	cloth.translate(0, 1.98, 0.02);
+	cloth.translate(0, 1.98, 0.02);  // maybe we can use model matrix to handle this
 
 	Mesh body("../pose/female.obj");
 	body.scale(3.226);

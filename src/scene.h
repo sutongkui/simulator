@@ -38,8 +38,8 @@ private:
 	GLSLShader renderShader;
 	enum attributes { position, texture, normal };
 
-	static Mesh* cloth;
-	static Mesh* body;
+	Mesh* cloth;
+	Mesh* body;
 	Simulator* simulation;
 
 private:
@@ -55,6 +55,7 @@ private:
 	static void OnKey(unsigned char key, int, int);
 	static void OnShutdown();
 	inline void check_GL_error();
+	static void Scene::draw_select_vertex();
 
 private:
 	static int oldX, oldY;    // OPENGL场景的各种参数declaration

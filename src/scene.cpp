@@ -6,11 +6,10 @@
 #include <fstream> 
 
 #include "Utilities.h"
+#include "Ray.h"
+
 using namespace std;
 
-
-Mesh* Scene::cloth = nullptr;
-Mesh* Scene::body = nullptr;
 
 // OPENGL场景的各种参数declaration
 Scene* Scene::pscene = nullptr;
@@ -35,6 +34,28 @@ GLenum GL_MODE = GL_LINE_LOOP;
 bool SAVE_OBJ = false;
 
 
+void Scene::draw_select_vertex()
+{
+	if (selected_index != -1)
+	{
+		glBindBuffer(GL_ARRAY_BUFFER, pscene->cloth->vbo.array_buffer);
+		glm::vec4* ptr = (glm::vec4*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
+		glUnmapBuffer(GL_ARRAY_BUFFER); // unmap it after use
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		if (ptr)
+		{
+			auto ver = ptr[selected_index];
+		
+			glPointSize(5);
+			glBegin(GL_POINTS);
+			glColor3f(1.0f, 0.0f, 0.0f);
+			glVertex3f(ver.x, ver.y, ver.z);
+			glPointSize(1);
+			glEnd();
+		}
+	}
+}
 
 Scene* Scene::getInstance(int argc, char** argv)
 {
@@ -142,7 +163,6 @@ void Scene::RenderBuffer(VAO_Buffer vao_buffer)
 	glUniformMatrix4fv(renderShader("projection"), 1, GL_FALSE, projection);
 	glUniform3fv(renderShader("viewPos"), 1, eyeDir);
 
-	//glPointSize(1);
 	glBindVertexArray(vao_buffer.vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vao_buffer.index_buffer);
 		glBindTexture(GL_TEXTURE_2D, vao_buffer.texture);
@@ -248,7 +268,7 @@ void Scene::RenderGPU_CUDA()
 {
 	if (pscene->simulation && start_sim)
 	{
-		pscene->simulation->simulate(cloth);
+		pscene->simulation->simulate(pscene->cloth);
 	}
 	
 	for (auto vao : pscene->obj_vaos)
@@ -259,6 +279,8 @@ void Scene::onRender()
 	getFPS();
 	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslatef(0, dy, 0);
 	glTranslatef(0, 0, dist);
@@ -273,6 +295,7 @@ void Scene::onRender()
 	Right = glm::cross(viewDir, Up);
 
 	DrawGrid();
+	draw_select_vertex();
 	RenderGPU_CUDA();
 
 	glutSwapBuffers();
@@ -285,11 +308,6 @@ void Scene::OnReshape(int nw, int nh)
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	gluPerspective(30, (GLfloat)nw / (GLfloat)nh, 0.1f, 100.0f);
-
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-
-	glutPostRedisplay();
 }
 void Scene::OnIdle()
 {
@@ -310,15 +328,16 @@ void Scene::OnMouseMove(int x, int y)
 		float delta = 1500 / abs(dist);
 		float valX = (x - oldX) / delta;
 		float valY = (oldY - y) / delta;
-		if (abs(valX)>abs(valY))
+		if (abs(valX) > abs(valY))
 			glutSetCursor(GLUT_CURSOR_LEFT_RIGHT);
 		else
 			glutSetCursor(GLUT_CURSOR_UP_DOWN);
 
-
-		glm::vec4* ptr = (glm::vec4*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_ONLY);
+		glBindBuffer(GL_ARRAY_BUFFER, pscene->cloth->vbo.array_buffer);
+		glm::vec4* ptr = (glm::vec4*)glMapBuffer(GL_ARRAY_BUFFER, GL_READ_WRITE);
 		glm::vec4 oldVal = ptr[selected_index];
 		glUnmapBuffer(GL_ARRAY_BUFFER); // unmap it after use
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		glm::vec4 newVal;
 		newVal.w = 1;
@@ -328,11 +347,14 @@ void Scene::OnMouseMove(int x, int y)
 			oldVal.x += Right[0] * valX;
 
 			float newValue = oldVal.y + Up[1] * valY;
-			if (newValue>0)
+			if (newValue > 0)
 				oldVal.y = newValue;
 			oldVal.z += Right[2] * valX + Up[2] * valY;
 			newVal = oldVal;
 		}
+
+		auto new_value = glm::vec3(newVal);
+		pscene->simulation->update_vertex(new_value, selected_index);
 
 	}
 	oldX = x;
@@ -346,21 +368,74 @@ void Scene::OnMouseDown(int button, int s, int x, int y)
 	{
 		oldX = x;
 		oldY = y;
-		int window_y = (height - y);
-		float norm_y = float(window_y) / float(height / 2.0);
-		int window_x = x;
-		float norm_x = float(window_x) / float(width / 2.0);
+		if (button == GLUT_RIGHT_BUTTON)
+		{
+			int window_y = (height - y);
+			int window_x = x;
+			float winZ = 0;
+			glReadPixels(x, height - y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
+			if (winZ == 1)
+				winZ = 0;
 
-		float winZ = 0;
-		glReadPixels(x, height - y, 1, 1, GL_DEPTH_COMPONENT, GL_FLOAT, &winZ);
-		if (winZ == 1)
-			winZ = 0;
-		double objX = 0, objY = 0, objZ = 0;
-		GLdouble MV1[16], P1[16];
-		gluUnProject(window_x, window_y, winZ, MV1, P1, viewport, &objX, &objY, &objZ);
-		glm::vec3 pt(objX, objY, objZ);
-		int i = 0;
+			GLdouble MV[16], P[16];
+			glGetDoublev(GL_MODELVIEW_MATRIX, MV);
+			glGetDoublev(GL_PROJECTION_MATRIX, P);
+			glGetIntegerv(GL_VIEWPORT, viewport);
 
+			double objX = 0, objY = 0, objZ = 0;
+			gluUnProject(window_x, window_y, winZ, MV, P, viewport, &objX, &objY, &objZ);
+
+			// If you wanna what \gluUnProject do, you can use the following commmented to replcae it 
+
+			// Screen coord - > NDC
+
+			//int x0 = viewport[0];
+			//int y0 = viewport[1];
+			//int w = viewport[2];
+			//int h = viewport[3];
+
+			//auto x_ndc = 2.0 * (window_x - x0) / w - 1;
+			//auto y_ndc = 2.0 * (window_y - y0) / h - 1;
+
+			//auto select_dir = glm::vec3(x_ndc, y_ndc, 1.0);
+
+
+			// NDC -> Camera coord
+			// Solve P*(x;y;z;1) = (xn;yn;zn;-z)   (xn/-z, yn/-z, zn/-z)  = select_dir
+
+			//auto p_mat = glm::mat4(P[0], P[1], P[2], P[3], P[4], P[5], P[6], P[7], P[8], P[9], P[10], P[11], P[12], P[13], P[14], P[15]);
+			//auto N = glm::mat4(0, 0, 0, 0, 0, 0, 0, 0, select_dir.x, select_dir.y, select_dir.z, 1, 0, 0, 0, 0);
+			//auto tem = p_mat + N;
+
+			//Eigen::Matrix<float, 4, 3> A;
+			//Eigen::Matrix<float, 4, 1> B;
+			//A << tem[0].x, tem[1].x, tem[2].x,
+			//	tem[0].y, tem[1].y, tem[2].y,
+			//	tem[0].z, tem[1].z, tem[2].z,
+			//	tem[0].w, tem[1].w, tem[2].w;
+			//B << -tem[3].x, -tem[3].y, -tem[3].z, -tem[3].w;
+			//cout << A << endl;
+			//cout << B << endl;
+			//Eigen::Vector3f  ans = A.colPivHouseholderQr().solve(B);
+
+			//glm::vec3 end = glm::vec3(ans[0], ans[1], ans[2]);
+			//auto ray_end = glm::vec3(glm::inverse(mv_mat) * glm::vec4(start, 1));
+
+
+			auto mv_mat = glm::mat4(MV[0], MV[1], MV[2], MV[3], MV[4], MV[5], MV[6], MV[7], MV[8], MV[9], MV[10], MV[11], MV[12], MV[13], MV[14], MV[15]);
+			glm::vec3 ray_end(objX, objY, objZ);
+			auto ray_start = glm::vec3(glm::inverse(mv_mat) * glm::vec4(0, 0, 0, 1));  // camera_world
+
+			Ray ray_world(ray_start, glm::normalize(ray_end - ray_start));
+
+			auto tri_idx = find_first_intersect_triangle(ray_world, pscene->cloth);
+
+			// return arbitary vertex idx of the triangle 
+			if (tri_idx != -1)
+			{
+				selected_index = pscene->cloth->faces[tri_idx].vertex_index[0];
+			}
+		}
 	}
 
 	if (button == GLUT_MIDDLE_BUTTON)
@@ -408,6 +483,5 @@ void Scene::OnShutdown()
 {
 	glutLeaveMainLoop();
 }
-
 
 

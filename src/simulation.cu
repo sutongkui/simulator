@@ -250,4 +250,9 @@ void Simulator::swap_buffer()
 	x_last_out = x_last[writeID];
 }
 
+void Simulator::update_vertex(glm::vec3 new_value, const unsigned int idx)
+{
+	safe_cuda(cudaMemcpy(&x_cur_in[idx], &new_value[0], sizeof(glm::vec3), cudaMemcpyHostToDevice));
+	safe_cuda(cudaMemcpy(&x_last_in[idx], &new_value[0], sizeof(glm::vec3), cudaMemcpyHostToDevice));
+}
 
