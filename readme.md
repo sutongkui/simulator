@@ -1,7 +1,7 @@
-# Simulator
+# VISGSim
 
 
-Simulator is a GPU-based cloth simulator.
+VISGSim is a GPU-based real time cloth simulator.
 
 ![Results](https://github.com/sutongkui/simulator/raw/master/Pic/Fig_1.jpg)
 
@@ -23,7 +23,9 @@ Simulator is a GPU-based cloth simulator.
 * 'W'/'w' - down in the axis '-y'
 * 'S'/'s' - up in the axis 'y'
 * 'X'/'x' - snapshot
-* mouse - press *middle* and drag to scale, press *left* and drag to rotate
+* press *left* and drag to rotate
+* press *middle* and drag to scale
+* press *right* and drag to drag mass
 
 # Realated papers
 
