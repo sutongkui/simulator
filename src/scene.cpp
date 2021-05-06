@@ -197,8 +197,8 @@ void Scene::loadShader()
 	GLfloat lightColor[3] = { 0.8,0.8,0.8 };
 	GLfloat objectColor[3] = { 0.8,0.8,0.8 };
 
-	renderShader.LoadFromFile(GL_VERTEX_SHADER, "../src/shaders/sh.vert");   
-	renderShader.LoadFromFile(GL_FRAGMENT_SHADER, "../src/shaders/sh.frag");
+	renderShader.LoadFromFile(GL_VERTEX_SHADER, "../../../src/shaders/sh.vert");   
+	renderShader.LoadFromFile(GL_FRAGMENT_SHADER, "../../../src/shaders/sh.frag");
 	renderShader.CreateAndLinkProgram();
 
 	renderShader.Use();
