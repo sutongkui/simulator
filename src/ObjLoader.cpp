@@ -17,7 +17,7 @@ ObjLoader::ObjLoader(const string file):obj_file(file)
 	ifstream input(file);
 	if(!input)
 	{
-		cout <<"error: unable to open input file: " << endl;
+		cout <<"error: unable to open input file: " << file << endl;
 		exit(-1);
 	}
 
