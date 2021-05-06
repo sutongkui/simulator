@@ -11,8 +11,6 @@
 #include "simulator.h"
 #include "./bvh/bvh.h"
 
-#pragma comment(lib, "glew32s.lib")
-
 // Singleton
 class Scene
 {

@@ -1,20 +1,22 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
-project(simulator)
+project(simulator LANGUAGES CXX CUDA)
 
-set(CUDA_PROPAGATE_HOST_FLAGS ON)
-set(CUDA_SEPARABLE_COMPILATION ON)
-find_package(CUDA REQUIRED)
+# deps
+add_subdirectory(3rd)
+
+# CUDA_HOST_COMPILER 的值可能会出错
+
+
+# 暂时禁用
 list(APPEND CUDA_NVCC_FLAGS "-rdc=true")
-list(APPEND CUDA_NVCC_FLAGS_DEBUG "-G")
 
-include_directories("${CMAKE_SOURCE_DIR}/Include")
-link_directories("${CMAKE_SOURCE_DIR}/lib" )
+file(GLOB_RECURSE SRC_FILES src/*.cu src/*.cpp src/*.h)
 
-file(GLOB PATHS_SRC src/*.cu src/*.cpp)
-file(GLOB PATHS_SRC_BVH src/bvh/*.cu src/bvh/*.cpp)
-
-CUDA_ADD_EXECUTABLE(test ${PATHS_SRC} ${PATHS_SRC_BVH})
-set_property(TARGET test PROPERTY CXX_STANDARD 11)
-target_link_libraries(test FreeImage)
-target_link_libraries(test ${CUDA_cudadevrt_LIBRARY})
+CUDA_ADD_EXECUTABLE(simulator ${SRC_FILES})
+target_compile_features(simulator PUBLIC cxx_std_11)
+set_target_properties(simulator PROPERTIES 
+    CUDA_SEPARABLE_COMPILATION ON
+    POSITION_INDEPENDENT_CODE ON
+    CUDA_ARCHITECTURES 35 50 72)
+target_link_libraries(simulator 3rd_libs)

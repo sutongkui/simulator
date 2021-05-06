@@ -1,9 +1,9 @@
 [submodule "3rd/FreeGLUT"]
 	path = 3rd/FreeGLUT
 	url = git@github.com:dcnieho/FreeGLUT.git
-[submodule "3rd/glew"]
-	path = 3rd/glew
-	url = git@github.com:nigels-com/glew.git
 [submodule "3rd/glm"]
 	path = 3rd/glm
 	url = git@github.com:g-truc/glm.git
+[submodule "3rd/glew-cmake"]
+	path = 3rd/glew-cmake
+	url = git@github.com:Perlmint/glew-cmake.git
