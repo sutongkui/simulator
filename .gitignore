@@ -2,7 +2,6 @@
 *.slo
 *.lo
 *.o
-*.obj
 *.pdb
 *.rc
 *.user
