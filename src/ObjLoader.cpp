@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+
+#include <Windows.h>
 #include <FreeImage.h>
 #include <GL/glew.h>
 #include <GL/freeglut.h>

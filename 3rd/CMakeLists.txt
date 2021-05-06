@@ -6,16 +6,10 @@ set(ONLY_LIBS true CACHE BOOL "")
 set(FREEGLUT_BUILD_DEMOS false CACHE BOOL "")
 
 
-# find cuda compiler
-find_package(CUDA REQUIRED)
-if(NOT CUDA_LIBRARIES)
-    message(STATUS "Could NOT find CUDA library, install it or set CUDA_ROOT")
-endif()
-
 # helper target for FreeGLUT
 add_subdirectory(FreeGLUT)
 add_library(3rd_FreeGLUT INTERFACE) # 暂时使用静态库
-target_link_libraries(3rd_FreeGLUT INTERFACE freeglut_static)
+target_link_libraries(3rd_FreeGLUT INTERFACE freeglut)
 target_include_directories(3rd_FreeGLUT INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/FreeGLUT/include)
 
 
@@ -91,4 +85,4 @@ endif()
 
 # helper target for all libs
 add_library(3rd_libs INTERFACE)
-target_link_libraries(3rd_libs INTERFACE 3rd_FreeGLUT 3rd_GLM 3rd_GLEW 3rd_FreeImage ${CUDA_LIBRARIES})
+target_link_libraries(3rd_libs INTERFACE 3rd_FreeGLUT 3rd_GLM 3rd_GLEW 3rd_FreeImage)
