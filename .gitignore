@@ -5,15 +5,12 @@
 *.obj
 *.pdb
 *.rc
-*.vcxproj
 *.user
 *.filters
 *.aps
 *.props
-*.sln
 
 # Build file
-/build
 
 # Precompiled Headers
 *.gch
@@ -22,7 +19,6 @@
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
 
 # Fortran module files
 *.mod
@@ -31,7 +27,6 @@
 *.lai
 *.la
 *.a
-*.lib
 
 # Executables
 *.exe
@@ -60,10 +55,10 @@
 .Trashes
 .VolumeIcon.icns
 *.vs
-/simulator/Debug/*
-/simulator/Release/*
-/simulator/x64/*
-/x64/*
+/build/simulator/Debug/*
+/build/simulator/Release/*
+/build/simulator/x64/*
+/build/simulator/simulator/x64/*
 *.nvuser
 
 # Directories potentially created on remote AFP share
@@ -96,4 +91,3 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
-simulator.sln
