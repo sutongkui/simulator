@@ -2,6 +2,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+
+#include <Windows.h>
 #include <FreeImage.h>
 #include <GL/glew.h>
 #include <GL/freeglut.h>
@@ -15,7 +17,7 @@ ObjLoader::ObjLoader(const string file):obj_file(file)
 	ifstream input(file);
 	if(!input)
 	{
-		cout <<"error: unable to open input file: " << endl;
+		cout <<"error: unable to open input file: " << file << endl;
 		exit(-1);
 	}
 

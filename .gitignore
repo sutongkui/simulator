@@ -90,3 +90,7 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+
+build
+lnx_build
