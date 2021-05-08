@@ -3,7 +3,7 @@
 
 VISGSim is a GPU-based real time cloth simulator.
 
-![Results](https://github.com/sutongkui/simulator/raw/master/Pic/Fig_1.jpg)
+![Results](./resources/Pic/Fig_1.jpg)
 
 # Contributions
 
